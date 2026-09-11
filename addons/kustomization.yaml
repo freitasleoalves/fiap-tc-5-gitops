@@ -1,0 +1,11 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+resources:
+  - sonarqube/application.yaml
+  - kube-prometheus-stack/application.yaml
+  - loki/application.yaml
+  - otel-collector-gateway/application.yaml
+  - otel-collector-logs/application.yaml
+  - grafana-dashboards/application.yaml
+  - velero/application.yaml

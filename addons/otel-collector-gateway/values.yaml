@@ -1,0 +1,113 @@
+# SolidaryTech - OTel Collector (Gateway)
+#
+# Peça central de telemetria: os 4 microsserviços (ngo, donation, volunteer,
+# notification) enviam traces, métricas e logs de aplicação via OTLP (gRPC
+# :4317 / HTTP :4318) para este Collector, que enriquece os dados com
+# metadados do Kubernetes e os roteia para os backends corretos:
+#   - métricas  -> Prometheus (kube-prometheus-stack), via remote-write
+#   - logs      -> Loki, via OTLP nativo
+#   - traces    -> Datadog APM, via exporter datadog nativo
+
+mode: deployment
+
+# O chart por padrão gera o Service como "<release>-opentelemetry-collector"
+# (ex.: otel-collector-opentelemetry-collector). Fixamos aqui para "otel-collector"
+# puro, que é o hostname usado em OTEL_EXPORTER_OTLP_ENDPOINT nos Deployments
+# dos 4 microsserviços (apps/*/base/deployment.yaml) — bug real pego na
+# Fase 4: sem isso, os apps nunca conseguem resolver o DNS do Collector.
+fullnameOverride: otel-collector
+
+replicaCount: 1
+
+image:
+  repository: otel/opentelemetry-collector-contrib
+  tag: "0.160.0"
+
+# A partir da 0.13x, o exporter datadog passou a pular o cálculo de APM
+# Stats (trace.* metrics, base do Service Map e dos Monitors de erro/SLO)
+# por padrão, recomendando o uso do Datadog Connector. Para manter Service
+# Map + Monitors de SRE funcionando via um único exporter (mais simples
+# pra este ambiente), reabilitamos o comportamento antigo via feature gate.
+command:
+  extraArgs:
+    - "--feature-gates=-exporter.datadogexporter.DisableAPMStats"
+
+# Injeta metadados de Pod/Namespace/Deployment em tudo que passa pelo
+# Collector (processor k8sattributes) e cuida do RBAC necessário.
+presets:
+  kubernetesAttributes:
+    enabled: true
+    extractAllPodLabels: true
+
+extraEnvsFrom:
+  - secretRef:
+      name: datadog-api-key
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 200Mi
+  limits:
+    cpu: 500m
+    memory: 400Mi
+
+config:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+  processors:
+    memory_limiter:
+      check_interval: 5s
+      limit_percentage: 80
+      spike_limit_percentage: 25
+    batch: {}
+    # k8sattributes é injetado automaticamente pelo preset kubernetesAttributes.
+
+  exporters:
+    # Métricas de aplicação (solidarytech_*, http.*) -> Prometheus, via
+    # remote-write. O Prometheus já roda com enableRemoteWriteReceiver: true.
+    prometheusremotewrite:
+      endpoint: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090/api/v1/write"
+      resource_to_telemetry_conversion:
+        enabled: true
+
+    # Logs de aplicação -> Loki, via endpoint OTLP nativo do Loki.
+    otlphttp/loki:
+      endpoint: "http://loki.monitoring.svc.cluster.local:3100/otlp"
+      tls:
+        insecure: true
+
+    # Traces -> Datadog APM (Distributed Tracing + Service Map + Watchdog/AIOps).
+    datadog:
+      api:
+        key: ${env:DD_API_KEY}
+        # Confirme o site da conta Datadog (Organization Settings, canto
+        # inferior esquerdo) — errar aqui faz o exporter falhar
+        # silenciosamente na autenticação.
+        site: us5.datadoghq.com
+
+  service:
+    telemetry:
+      logs:
+        level: info
+    pipelines:
+      traces:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, batch]
+        exporters: [datadog]
+      metrics:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, batch]
+        exporters: [prometheusremotewrite]
+      logs:
+        receivers: [otlp]
+        processors: [memory_limiter, k8sattributes, batch]
+        exporters: [otlphttp/loki]
+
+service:
+  type: ClusterIP

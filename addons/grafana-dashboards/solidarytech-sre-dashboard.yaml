@@ -1,0 +1,231 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: solidarytech-sre-dashboard
+  namespace: monitoring
+  labels:
+    grafana_dashboard: "1"
+data:
+  solidarytech-sre.json: |
+    {
+      "title": "SolidaryTech - SRE (SLO & Error Budget)",
+      "uid": "solidarytech-sre",
+      "description": "Painel dedicado exclusivamente aos SLOs do donation-service (Hot Path) e ao consumo do Error Budget — requisito de SRE da Fase 5. Não mistura métricas de infraestrutura geral (ver dashboard 'SolidaryTech - Overview' para isso).",
+      "schemaVersion": 39,
+      "version": 1,
+      "editable": true,
+      "timezone": "browser",
+      "refresh": "1m",
+      "time": { "from": "now-24h", "to": "now" },
+      "tags": ["solidarytech", "fase5", "sre", "slo"],
+      "panels": [
+        {
+          "id": 1,
+          "type": "row",
+          "title": "SLI 1 — Taxa de Erros / Disponibilidade (janela de Error Budget: 30 dias)",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 0 }
+        },
+        {
+          "id": 2,
+          "type": "text",
+          "title": "SLO de Disponibilidade",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 1 },
+          "options": {
+            "mode": "markdown",
+            "content": "### 99.9%\nde requisições com sucesso (não-5xx), medido em janela móvel de 30 dias."
+          }
+        },
+        {
+          "id": 3,
+          "type": "stat",
+          "title": "Disponibilidade Real (30d)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 1 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 99,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 99.9 },
+                  { "color": "green", "value": 99.95 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "100 * (1 - (sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))))"
+            }
+          ]
+        },
+        {
+          "id": 4,
+          "type": "gauge",
+          "title": "Error Budget Restante (30d)",
+          "description": "100% = nenhum erro consumido do orçamento de 0.1% de falhas permitidas no mês. 0% = orçamento zerado (qualquer erro adicional já viola o SLO).",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 6, "x": 12, "y": 1 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 0,
+              "max": 100,
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "yellow", "value": 20 },
+                  { "color": "green", "value": 50 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "clamp_min(100 - (100 * (sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))) / 0.001), 0)"
+            }
+          ]
+        },
+        {
+          "id": 5,
+          "type": "stat",
+          "title": "Total de Requisições (30d)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 1 },
+          "fieldConfig": { "defaults": { "unit": "short" }, "overrides": [] },
+          "targets": [
+            { "expr": "sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))" }
+          ]
+        },
+        {
+          "id": 6,
+          "type": "stat",
+          "title": "Total de Erros 5xx (30d)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 6, "x": 18, "y": 5 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "short",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 1 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            { "expr": "sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d]))" }
+          ]
+        },
+        {
+          "id": 7,
+          "type": "timeseries",
+          "title": "Taxa de sucesso (janela 1h) vs. SLO (99.9%)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 0, "y": 9 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "percent",
+              "min": 95,
+              "max": 100,
+              "custom": {
+                "thresholdsStyle": { "mode": "line" }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "red", "value": null },
+                  { "color": "green", "value": 99.9 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "100 * (1 - (sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[1h])) / sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\"}[1h]))))",
+              "legendFormat": "Taxa de sucesso"
+            }
+          ]
+        },
+        {
+          "id": 10,
+          "type": "row",
+          "title": "SLI 2 — Latência (p95)",
+          "gridPos": { "h": 1, "w": 24, "x": 0, "y": 17 }
+        },
+        {
+          "id": 11,
+          "type": "text",
+          "title": "SLO de Latência",
+          "gridPos": { "h": 4, "w": 6, "x": 0, "y": 18 },
+          "options": {
+            "mode": "markdown",
+            "content": "### p95 ≤ 500ms\nem `POST/GET /donations`, medido em janela móvel de 5 minutos."
+          }
+        },
+        {
+          "id": 12,
+          "type": "stat",
+          "title": "Latência p95 (ao vivo, 5m)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 4, "w": 6, "x": 6, "y": 18 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 0.5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(solidarytech_http_request_duration_seconds_bucket{service_name=\"donation-service\"}[5m])))"
+            }
+          ]
+        },
+        {
+          "id": 13,
+          "type": "timeseries",
+          "title": "Latência p95 ao longo do tempo vs. SLO (500ms)",
+          "datasource": "Prometheus",
+          "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+          "fieldConfig": {
+            "defaults": {
+              "unit": "s",
+              "custom": {
+                "thresholdsStyle": { "mode": "line" }
+              },
+              "thresholds": {
+                "mode": "absolute",
+                "steps": [
+                  { "color": "green", "value": null },
+                  { "color": "red", "value": 0.5 }
+                ]
+              }
+            },
+            "overrides": []
+          },
+          "targets": [
+            {
+              "expr": "histogram_quantile(0.95, sum by (le) (rate(solidarytech_http_request_duration_seconds_bucket{service_name=\"donation-service\"}[5m])))",
+              "legendFormat": "p95"
+            }
+          ]
+        }
+      ]
+    }

@@ -1,0 +1,154 @@
+# SolidaryTech - kube-prometheus-stack
+# Base de observabilidade opensource: Prometheus (métricas de infra + métricas
+# roteadas pelo OTel Collector via remote-write) + Grafana (visualização) +
+# Alertmanager (bundled).
+
+fullnameOverride: kube-prometheus-stack
+
+# ------------------------------------------------------------------
+# Prometheus
+# ------------------------------------------------------------------
+prometheus:
+  prometheusSpec:
+    # 30d (não os 7d "default de laboratório" usados na Fase 4): decisão
+    # deliberada de FinOps — o SLO de disponibilidade do donation-service é
+    # medido numa janela mensal (Error Budget de 30 dias), então a retenção
+    # precisa cobrir essa janela inteira pro dashboard de SRE calcular o
+    # budget consumido sem depender só do Datadog (que tem retenção mais
+    # longa, mas é pago por volume). Custo extra de storage documentado no
+    # relatório de Forecast.
+    retention: 30d
+    # Habilita o endpoint /api/v1/write para que o OTel Collector consiga
+    # empurrar (via exporter prometheusremotewrite) as métricas dos
+    # microsserviços diretamente para o Prometheus.
+    enableRemoteWriteReceiver: true
+
+    # Descobre ServiceMonitors/PodMonitors de qualquer namespace/release,
+    # não só os criados por este próprio Helm release.
+    serviceMonitorSelectorNilUsesHelmValues: false
+    podMonitorSelectorNilUsesHelmValues: false
+    ruleSelectorNilUsesHelmValues: false
+
+    resources:
+      requests:
+        cpu: 150m
+        memory: 512Mi
+      limits:
+        cpu: 500m
+        memory: 1Gi
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 20Gi
+
+# ------------------------------------------------------------------
+# Alertmanager (bundled; o alerta principal do desafio roda via Datadog —
+# ver fiap-tc-5-terraform/datadog.tf —, mas mantemos o Alertmanager ativo
+# para alertas de infraestrutura do Prometheus, ex.: node down).
+# ------------------------------------------------------------------
+alertmanager:
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 25m
+        memory: 64Mi
+      limits:
+        cpu: 100m
+        memory: 128Mi
+    storage:
+      volumeClaimTemplate:
+        spec:
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 1Gi
+
+# ------------------------------------------------------------------
+# Grafana
+# ------------------------------------------------------------------
+grafana:
+  fullnameOverride: kube-prometheus-stack-grafana
+  adminUser: admin
+  adminPassword: "SolidaryTech2026!" # troque antes de subir para produção real
+
+  persistence:
+    enabled: true
+    size: 2Gi
+
+  # Lição da Fase 4: o disco do Azure (PVC) é ReadWriteOnce. Com a
+  # estratégia padrão (RollingUpdate), o pod novo pode ficar preso em
+  # "Multi-Attach error" esperando o volume, enquanto o pod antigo nunca é
+  # removido (deadlock). Recreate evita isso, ao custo de um pequeno
+  # downtime a cada deploy.
+  deploymentStrategy:
+    type: Recreate
+
+  # Lição da Fase 4: Grafana 13.x roda uma camada de API "estilo
+  # Kubernetes" (dashboards, folders, quotas) por baixo que consome bem
+  # mais memória que as versões clássicas. 256Mi é insuficiente — o
+  # container fica colado no limite, causando timeouts em cascata em quase
+  # toda requisição (contexts cancelados, "Handler timeout" etc.).
+  resources:
+    requests:
+      cpu: 100m
+      memory: 384Mi
+    limits:
+      cpu: 500m
+      memory: 768Mi
+
+  # Sidecar que carrega dashboards a partir de ConfigMaps com o label
+  # grafana_dashboard: "1" (usado pelo addon addons/grafana-dashboards).
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      labelValue: "1"
+      searchNamespace: ALL
+      folder: /tmp/dashboards
+    datasources:
+      enabled: true
+
+  # Datasource do Loki, além do Prometheus (criado automaticamente pelo chart).
+  additionalDataSources:
+    - name: Loki
+      type: loki
+      access: proxy
+      url: http://loki.monitoring.svc.cluster.local:3100
+      jsonData:
+        maxLines: 1000
+
+  grafana.ini:
+    server:
+      # ATENÇÃO (mesmo bug real que pegamos na Fase 4): "domain" precisa
+      # ser o host/IP público real do ingress-nginx (LoadBalancer), senão
+      # o Grafana redireciona pra "localhost" (default de %(domain)s) e o
+      # acesso externo quebra com loop de redirect 301. Depois do primeiro
+      # `terraform apply`, rode
+      # `kubectl get svc ingress-nginx-controller -n ingress-nginx -o
+      # jsonpath='{.status.loadBalancer.ingress[0].ip}'` e atualize aqui.
+      domain: "REPLACE_WITH_INGRESS_NGINX_IP"
+      root_url: "%(protocol)s://%(domain)s/grafana/"
+      serve_from_sub_path: true
+
+# ------------------------------------------------------------------
+# Exporters de infraestrutura (uso de recursos do cluster)
+# ------------------------------------------------------------------
+kubeStateMetrics:
+  enabled: true
+
+nodeExporter:
+  enabled: true
+
+# Componentes não utilizados neste cluster gerenciado (AKS) ou fora de escopo.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false

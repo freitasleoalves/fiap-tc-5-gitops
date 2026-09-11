@@ -1,0 +1,69 @@
+# SolidaryTech - Velero (Disaster Recovery — Opção A do desafio)
+#
+# Faz backup do estado do cluster (manifestos via Azure Blob Storage +
+# volumes via snapshot nativo de Azure Disk) para um Storage Account
+# externo ao cluster, provisionado no Terraform (fiap-tc-5-terraform,
+# velero.tf). O Schedule (schedule.yaml) roda o backup diariamente.
+
+initContainers:
+  - name: velero-plugin-for-microsoft-azure
+    image: velero/velero-plugin-for-microsoft-azure:v1.13.1
+    imagePullPolicy: IfNotPresent
+    volumeMounts:
+      - mountPath: /target
+        name: plugins
+
+credentials:
+  useSecret: true
+  # Secret criado em secrets.yaml (fora deste chart), com as credenciais
+  # reais do Service Principal do Velero (saída do Terraform:
+  # velero_service_principal_client_id/secret, velero_tenant_id).
+  existingSecret: cloud-credentials
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 128Mi
+  limits:
+    cpu: 500m
+    memory: 256Mi
+
+configuration:
+  backupStorageLocation:
+    - name: default
+      provider: azure
+      # ATENÇÃO: preencha com os valores reais dos outputs do Terraform
+      # (velero_storage_account_name / resource_group_name) antes de
+      # sincronizar este Application.
+      bucket: velero-backups
+      default: true
+      credential:
+        name: cloud-credentials
+        key: cloud
+      config:
+        resourceGroup: "REPLACE_WITH_RESOURCE_GROUP_NAME"
+        storageAccount: "REPLACE_WITH_VELERO_STORAGE_ACCOUNT_NAME"
+        subscriptionId: "REPLACE_WITH_SUBSCRIPTION_ID"
+
+  volumeSnapshotLocation:
+    - name: default
+      provider: azure
+      credential:
+        name: cloud-credentials
+        key: cloud
+      config:
+        # Os discos (PVCs) vivem no resource group GERENCIADO pelo AKS
+        # (MC_...), não no resource group principal — ver output
+        # `aks_node_resource_group` do Terraform.
+        resourceGroup: "REPLACE_WITH_AKS_NODE_RESOURCE_GROUP"
+        subscriptionId: "REPLACE_WITH_SUBSCRIPTION_ID"
+        incremental: "true"
+
+  # Backup de manifestos + volumes por padrão (sem isso, só faz backup dos
+  # objetos do Kubernetes, sem os dados dos PVCs).
+  features: EnableCSI
+
+# Habilita o plugin de snapshot CSI nativo (funciona junto com o plugin de
+# volume snapshot do Azure acima).
+snapshotsEnabled: true
+deployNodeAgent: true

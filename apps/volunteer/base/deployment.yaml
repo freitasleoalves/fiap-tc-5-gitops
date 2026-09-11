@@ -1,0 +1,71 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: volunteer-service
+  labels:
+    app: volunteer-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: volunteer-service
+  template:
+    metadata:
+      labels:
+        app: volunteer-service
+    spec:
+      containers:
+        - name: volunteer-service
+          image: acrsolidarytechprod.azurecr.io/volunteer-service:latest
+          ports:
+            - containerPort: 8083
+          env:
+            - name: PORT
+              value: "8083"
+            # Fase C adapta o código original (só AWS DynamoDB) pra também
+            # suportar Azure Cosmos DB Table API via este toggle — mesmo
+            # padrão do analytics-service da Fase 3/4.
+            - name: CLOUD_PROVIDER
+              value: "azure"
+            - name: AZURE_COSMOSDB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: azure-secrets
+                  key: cosmosdb-connection-string
+            - name: AZURE_COSMOSDB_TABLE_NAME
+              value: "Volunteers"
+            - name: OTEL_SERVICE_NAME
+              value: "volunteer-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.monitoring.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment=production"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
+            - name: OTEL_PYTHON_LOG_CORRELATION
+              value: "true"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 96Mi
+            limits:
+              cpu: 250m
+              memory: 192Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8083
+            initialDelaySeconds: 10
+            periodSeconds: 15

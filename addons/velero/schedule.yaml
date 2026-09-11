@@ -1,0 +1,37 @@
+# Backup diário de todo o ecossistema SolidaryTech (manifestos + volumes).
+# TTL de 30 dias: cobre a janela de Error Budget/relatório de FinOps sem
+# acumular custo de storage indefinidamente.
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: solidarytech-daily
+  namespace: velero
+spec:
+  schedule: "0 2 * * *" # 02:00 todo dia
+  template:
+    includedNamespaces:
+      - ngo
+      - donation
+      - volunteer
+      - notification
+    includeClusterResources: true
+    snapshotVolumes: true
+    ttl: 720h0m0s # 30 dias
+---
+# Backup mais frequente só do donation-service (Hot Path): sustenta um RTO
+# mais agressivo (≤ 30min) sem depender de esperar até 24h de defasagem no
+# pior caso. O RPO fino (≤ 5min) continua vindo do PITR do Postgres, não
+# deste backup — ver PCN no relatório de entrega.
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: solidarytech-donation-hourly
+  namespace: velero
+spec:
+  schedule: "0 * * * *" # a cada hora
+  template:
+    includedNamespaces:
+      - donation
+    includeClusterResources: true
+    snapshotVolumes: true
+    ttl: 168h0m0s # 7 dias

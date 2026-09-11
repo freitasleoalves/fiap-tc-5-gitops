@@ -1,0 +1,77 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: notification-service
+  labels:
+    app: notification-service
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app: notification-service
+  template:
+    metadata:
+      labels:
+        app: notification-service
+    spec:
+      containers:
+        - name: notification-service
+          image: acrsolidarytechprod.azurecr.io/notification-service:latest
+          ports:
+            - containerPort: 8084
+          env:
+            - name: PORT
+              value: "8084"
+            # Consome a fila que o donation-service publica a cada doação
+            # aprovada, e grava o registro processado no Cosmos DB — fecha
+            # o trace distribuído assíncrono (mesmo padrão
+            # evaluation-service -> analytics-service da Fase 3/4).
+            - name: AZURE_SERVICEBUS_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: azure-secrets
+                  key: servicebus-connection-string
+            - name: AZURE_SERVICEBUS_QUEUE_NAME
+              value: "donation-events"
+            - name: AZURE_COSMOSDB_CONNECTION_STRING
+              valueFrom:
+                secretKeyRef:
+                  name: azure-secrets
+                  key: cosmosdb-connection-string
+            - name: AZURE_COSMOSDB_TABLE_NAME
+              value: "DonationNotifications"
+            - name: OTEL_SERVICE_NAME
+              value: "notification-service"
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: "http://otel-collector.monitoring.svc.cluster.local:4318"
+            - name: OTEL_EXPORTER_OTLP_PROTOCOL
+              value: "http/protobuf"
+            - name: OTEL_RESOURCE_ATTRIBUTES
+              value: "deployment.environment=production"
+            - name: OTEL_TRACES_EXPORTER
+              value: "otlp"
+            - name: OTEL_METRICS_EXPORTER
+              value: "otlp"
+            - name: OTEL_LOGS_EXPORTER
+              value: "none"
+            - name: OTEL_PYTHON_LOG_CORRELATION
+              value: "true"
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 5
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 8084
+            initialDelaySeconds: 10
+            periodSeconds: 15
