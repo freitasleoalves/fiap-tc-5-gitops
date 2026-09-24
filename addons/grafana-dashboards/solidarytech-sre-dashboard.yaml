@@ -59,7 +59,7 @@ data:
           },
           "targets": [
             {
-              "expr": "100 * (1 - (sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))))"
+              "expr": "100 * (1 - ((sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) or vector(0)) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))))"
             }
           ]
         },
@@ -88,7 +88,7 @@ data:
           },
           "targets": [
             {
-              "expr": "clamp_min(100 - (100 * (sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))) / 0.001), 0)"
+              "expr": "clamp_min(100 - (100 * ((sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) or vector(0)) / sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\"}[30d]))) / 0.001), 0)"
             }
           ]
         },
@@ -123,7 +123,7 @@ data:
             "overrides": []
           },
           "targets": [
-            { "expr": "sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d]))" }
+            { "expr": "sum(increase(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[30d])) or vector(0)" }
           ]
         },
         {
@@ -152,7 +152,7 @@ data:
           },
           "targets": [
             {
-              "expr": "100 * (1 - (sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[1h])) / sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\"}[1h]))))",
+              "expr": "100 * (1 - ((sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\", http_status_code=~\"5..\"}[1h])) or vector(0)) / sum(rate(solidarytech_http_requests_total{service_name=\"donation-service\"}[1h]))))",
               "legendFormat": "Taxa de sucesso"
             }
           ]
