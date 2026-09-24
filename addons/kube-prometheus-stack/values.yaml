@@ -75,6 +75,18 @@ grafana:
   adminUser: admin
   adminPassword: "SolidaryTech2026!" # troque antes de subir para produção real
 
+  # Bug real encontrado na validação end-to-end: a partir da 13.x, o
+  # Grafana tenta re-instalar os plugins core "bundled" (prometheus, loki
+  # etc.) no boot, escrevendo em /usr/share/grafana/data/plugins-bundled —
+  # caminho que fica read-only no container (securityContext padrão do
+  # chart). O update falha ("unlinkat ...: read-only file system") e
+  # DESREGISTRA o plugin em vez de manter o já embutido, quebrando os
+  # datasources Prometheus/Loki (dashboards com "No data" e "Plugin not
+  # registered" no /api/datasources/.../health). Fixado numa versão
+  # anterior a essa mudança de comportamento.
+  image:
+    tag: "11.4.0"
+
   persistence:
     enabled: true
     size: 2Gi
