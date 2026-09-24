@@ -2,8 +2,8 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: notification
 resources:
-  - ../../base
-  - secrets.yaml
+- ../../base
+- secrets.yaml
 images:
-  - name: acrsolidarytechprod.azurecr.io/notification-service
-    newTag: latest
+- name: acrsolidarytechprod.azurecr.io/notification-service
+  newTag: 5fafa72b388c904a9a96969c8817700cc50fff5f
