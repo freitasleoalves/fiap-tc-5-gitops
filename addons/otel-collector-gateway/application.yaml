@@ -33,3 +33,13 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+  # O secrets.yaml versionado só tem um placeholder (repo público — nunca
+  # commitamos a API Key real). O valor real é aplicado direto no cluster
+  # via `kubectl apply` (fora do Git); isso evita que o selfHeal do ArgoCD
+  # reverta pro placeholder a cada ciclo de sync.
+  ignoreDifferences:
+    - kind: Secret
+      name: datadog-api-key
+      jsonPointers:
+        - /data
+        - /stringData

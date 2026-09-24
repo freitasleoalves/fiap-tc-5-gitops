@@ -34,3 +34,12 @@ spec:
       prune: true
     syncOptions:
       - CreateNamespace=true
+  # Mesmo racional do addon otel-collector-gateway: secrets.yaml versionado
+  # só tem placeholders (repo público); o valor real (credenciais do SP do
+  # Velero) é aplicado direto no cluster via `kubectl apply`, fora do Git.
+  ignoreDifferences:
+    - kind: Secret
+      name: cloud-credentials
+      jsonPointers:
+        - /data
+        - /stringData

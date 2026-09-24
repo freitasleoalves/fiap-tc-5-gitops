@@ -33,3 +33,12 @@ spec:
           prune: true
         syncOptions:
           - CreateNamespace=true
+      # secrets.yaml versionado só tem placeholders (repo público). O valor
+      # real (connection strings de Postgres/Service Bus/Cosmos DB) é
+      # aplicado direto no cluster via `kubectl apply`, fora do Git — sem
+      # isso, o selfHeal reverteria pro placeholder a cada sync.
+      ignoreDifferences:
+        - kind: Secret
+          jsonPointers:
+            - /data
+            - /stringData
