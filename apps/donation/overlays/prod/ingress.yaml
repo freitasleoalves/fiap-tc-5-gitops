@@ -2,15 +2,19 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: donation-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  # SEM rewrite-target: o donation-service registra a rota Go COM o
+  # prefixo (`/donations` — ver main.go, código original do desafio,
+  # mantido como está por decisão do usuário). Um rewrite que remove o
+  # prefixo (`/donations` -> `/`) faz o mux devolver 404 — bug real
+  # encontrado na validação end-to-end. Path Prefix simples preserva o
+  # path completo até o backend.
 spec:
   ingressClassName: nginx
   rules:
     - http:
         paths:
-          - path: /donations(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /donations
+            pathType: Prefix
             backend:
               service:
                 name: donation-service

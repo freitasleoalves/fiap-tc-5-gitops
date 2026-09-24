@@ -2,15 +2,19 @@ apiVersion: networking.k8s.io/v1
 kind: Ingress
 metadata:
   name: volunteer-ingress
-  annotations:
-    nginx.ingress.kubernetes.io/rewrite-target: /$2
+  # SEM rewrite-target: o volunteer-service registra as rotas Flask COM o
+  # prefixo (`/volunteers`, `/volunteers/<ngo_id>` — ver app.py, código
+  # original do desafio, mantido como está por decisão do usuário). Um
+  # rewrite que remove o prefixo (`/volunteers` -> `/`) faz o Flask
+  # devolver 404 — bug real encontrado na validação end-to-end. Path
+  # Prefix simples preserva o path completo até o backend.
 spec:
   ingressClassName: nginx
   rules:
     - http:
         paths:
-          - path: /volunteers(/|$)(.*)
-            pathType: ImplementationSpecific
+          - path: /volunteers
+            pathType: Prefix
             backend:
               service:
                 name: volunteer-service
