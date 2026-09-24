@@ -2,11 +2,11 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: ngo
 resources:
-  - ../../base
-  - configmap.yaml
-  - db-init-job.yaml
-  - ingress.yaml
-  - secrets.yaml
+- ../../base
+- configmap.yaml
+- db-init-job.yaml
+- ingress.yaml
+- secrets.yaml
 images:
-  - name: acrsolidarytechprod.azurecr.io/ngo-service
-    newTag: latest
+- name: acrsolidarytechprod.azurecr.io/ngo-service
+  newTag: 73d5d36baf331b4af390cbfaca53178e25e037cb
