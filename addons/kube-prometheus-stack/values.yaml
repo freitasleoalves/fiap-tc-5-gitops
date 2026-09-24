@@ -130,7 +130,7 @@ grafana:
       # `terraform apply`, rode
       # `kubectl get svc ingress-nginx-controller -n ingress-nginx -o
       # jsonpath='{.status.loadBalancer.ingress[0].ip}'` e atualize aqui.
-      domain: "REPLACE_WITH_INGRESS_NGINX_IP"
+      domain: "40.76.152.70"
       root_url: "%(protocol)s://%(domain)s/grafana/"
       serve_from_sub_path: true
 
