@@ -2,9 +2,9 @@ apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 namespace: volunteer
 resources:
-  - ../../base
-  - ingress.yaml
-  - secrets.yaml
+- ../../base
+- ingress.yaml
+- secrets.yaml
 images:
-  - name: acrsolidarytechprod.azurecr.io/volunteer-service
-    newTag: latest
+- name: acrsolidarytechprod.azurecr.io/volunteer-service
+  newTag: 87ae20a3aa8d7b22e462d0a8f6b4ee5837d060f0
