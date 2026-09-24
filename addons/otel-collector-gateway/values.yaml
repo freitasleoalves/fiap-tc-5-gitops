@@ -89,7 +89,7 @@ config:
         # Confirme o site da conta Datadog (Organization Settings, canto
         # inferior esquerdo) — errar aqui faz o exporter falhar
         # silenciosamente na autenticação.
-        site: us5.datadoghq.com
+        site: datadoghq.com
 
   service:
     telemetry:
