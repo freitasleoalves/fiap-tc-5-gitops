@@ -41,9 +41,9 @@ configuration:
         name: cloud-credentials
         key: cloud
       config:
-        resourceGroup: "REPLACE_WITH_RESOURCE_GROUP_NAME"
-        storageAccount: "REPLACE_WITH_VELERO_STORAGE_ACCOUNT_NAME"
-        subscriptionId: "REPLACE_WITH_SUBSCRIPTION_ID"
+        resourceGroup: "rg-solidarytech-prod"
+        storageAccount: "stvelerosolidarytechprod"
+        subscriptionId: "f40294d8-d355-4fe7-baab-8d8eaeec2f4b"
 
   volumeSnapshotLocation:
     - name: default
@@ -55,8 +55,8 @@ configuration:
         # Os discos (PVCs) vivem no resource group GERENCIADO pelo AKS
         # (MC_...), não no resource group principal — ver output
         # `aks_node_resource_group` do Terraform.
-        resourceGroup: "REPLACE_WITH_AKS_NODE_RESOURCE_GROUP"
-        subscriptionId: "REPLACE_WITH_SUBSCRIPTION_ID"
+        resourceGroup: "MC_rg-solidarytech-prod_aks-solidarytech-prod_eastus"
+        subscriptionId: "f40294d8-d355-4fe7-baab-8d8eaeec2f4b"
         incremental: "true"
 
   # Backup de manifestos + volumes por padrão (sem isso, só faz backup dos
