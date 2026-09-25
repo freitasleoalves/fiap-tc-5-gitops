@@ -10,4 +10,4 @@ resources:
 - secrets.yaml
 images:
 - name: acrsolidarytechprod.azurecr.io/donation-service
-  newTag: c112b9d6802bf66c138603ec30cd2fda1465aada
+  newTag: 09f6e6e0965a5c4006080f0cf87703f029a1fd18
